@@ -1,3 +1,5 @@
+#!/
+
 import subprocess
 import argparse
 
@@ -263,9 +265,15 @@ def get_listed_packages():
 
     return packages
 
-def get_installed_packages():
+def get_listed_groups(packages):
+    """Returns a list of packages in `packages` that are actually groups"""
+    command = "pacman -Sg %s | awk '{print $1}' | sort -u" % " ".join(packages)
+    return subprocess.check_output(command, shell=True).rstrip().split('\n')
+
+def get_installed_packages(groups):
     """Returns a set of installed packages"""
-    packages = subprocess.check_output("pacman -Qe | awk '{print $1}' | grep -Fxv -f <(pacman -Qg | awk '{print $2}')", shell=True, executable="/bin/bash").rstrip().split('\n')
+    command = "pacman -Qe | awk '{print $1}' | grep -Fxv -f <(pacman -Qg %s | awk '{print $2}')" % " ".join(groups)
+    packages = subprocess.check_output(command, shell=True, executable="/bin/bash").rstrip().split('\n')
     for i in range(0, len(packages)):
         packages[i] = packages[i].split()[0]
     return set(packages)
@@ -282,7 +290,9 @@ def main():
     args = parser.parse_args()
 
     packages = get_listed_packages()
-    installed_packages = get_installed_packages()
+    groups = get_listed_groups(packages)
+    groups.append('base')
+    installed_packages = get_installed_packages(groups)
 
     if args.subcommand == 'install':
         raise NotImplementedError
