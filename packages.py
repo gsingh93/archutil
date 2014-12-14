@@ -117,15 +117,16 @@ def check_all(func, args):
     return all(map(func, args))
 
 
-def safe_copy(path1, path2):
+def safe_copy(path1, path2, safe=True):
     """Safely copies path1 to path2, backing up any file originally at path2 as
     path2.bak"""
-    if os.path.exists(path2):
+    if safe and os.path.exists(path2):
         if not (check_all(os.path.isdir, [path1, path2]) or check_all(os.path.isfile, [path1, path2])):
             print_msg("Both paths must either be only files or only directories", colors.RED)
             return
         safe_copy(path2, os.path.normpath(path2) + ".bak")
 
+    print_msg("Copying %s to %s" % (path1, path2), colors.BLUE)
     if os.path.isdir(path1):
         shutil.copytree(path1, path2)
     else:
@@ -157,17 +158,59 @@ def handle_config(args):
     elif args.diff_file:
         config_diff(True, config_path)
     elif args.install:
-        for f, path in config.config_files.iteritems():
+        for f, system_config_file_path in config.config_files.iteritems():
             repo_config_file_path = os.path.join(config_path, f)
-            if not os.path.exists(repo_path):
+            if not os.path.exists(repo_config_file_path):
                 print_msg(repo_path + " does not exist", colors.RED)
             else:
-                safe_copy(repo_config_file_path, system_config_file_path)
+                if os.path.exists(system_config_file_path):
+                    retcode = subprocess.call(['diff', repo_config_file_path,
+                                               system_config_file_path])
+                    if retcode != 0:
+                        safe_copy(repo_config_file_path, system_config_file_path)
+                    else:
+                        print_msg("Files %s and %s match, skipping install"
+                                  % (repo_config_file_path, system_config_file_path))
+                else:
+                    safe_copy(repo_config_file_path, system_config_file_path)
     elif args.update:
-        pass
+        for f, system_config_file_path in config.config_files.iteritems():
+            repo_config_file_path = os.path.join(config_path, f)
+            if not os.path.exists(system_config_file_path):
+                print_msg(repo_path + " does not exist", colors.RED)
+            else:
+                if not os.path.exists(repo_config_file_path):
+                    safe_copy(system_config_file_path, repo_config_file_path)
+                else:
+                    retcode = subprocess.call(['diff', repo_config_file_path,
+                                               system_config_file_path])
+                    if retcode != 0:
+                        if yes_no_choice("Update config file with system config file (< is config file, > is system config file)? [y/N]: ", False):
+                            safe_copy(system_config_file_path, repo_config_file_path, False)
+                        else:
+                            print_msg("Skipping update of file " + f)
+                    else:
+                        print_msg("Files match, skipping update of file " + f)
     else:
         raise ValueError("Argument required for config subcommand")
 
+
+def yes_no_choice(prompt, default_yes):
+    yes = set(['yes', 'y', 'ye'])
+    no = set(['no','n'])
+
+    if default_yes:
+        yes.add('')
+    else:
+        no.add('')
+
+    choice = raw_input(prompt).lower()
+    if choice in yes:
+       return True
+    elif choice in no:
+       return False
+    else:
+       sys.stdout.write("Please respond with 'y' or 'n'")
 
 def handle_list(args):
     if not check_var_exists('packages'):
