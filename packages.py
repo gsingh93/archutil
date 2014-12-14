@@ -22,6 +22,53 @@ def print_msg(m, color=colors.DEFAULT):
     printc("========== %s ==========" % m, color)
 
 
+def check_var_exists(var_name):
+    if not (hasattr(config, var_name) and type(config.config_files) == dict):
+        print_msg("config.py must contain a dictionary called `%s`" % var_name,
+                  colors.RED)
+        return False
+    return True
+
+
+def yes_no_choice(prompt, default_yes):
+    yes = set(['yes', 'y', 'ye'])
+    no = set(['no','n'])
+
+    if default_yes:
+        yes.add('')
+    else:
+        no.add('')
+
+    choice = raw_input(prompt).lower()
+    if choice in yes:
+       return True
+    elif choice in no:
+       return False
+    else:
+       sys.stdout.write("Please respond with 'y' or 'n'")
+
+
+def check_all(func, args):
+    return all(map(func, args))
+
+
+def safe_copy(path1, path2, safe=True):
+    """Safely copies path1 to path2, backing up any file originally at path2 as
+    path2.bak"""
+    if safe and os.path.exists(path2):
+        if not (check_all(os.path.isdir, [path1, path2]) or check_all(os.path.isfile, [path1, path2])):
+            print_msg("Both paths must either be only files or only directories", colors.RED)
+            return
+        safe_copy(path2, os.path.normpath(path2) + ".bak")
+
+    print_msg("Copying %s to %s" % (path1, path2), colors.BLUE)
+    if os.path.isdir(path1):
+        shutil.copytree(path1, path2)
+    else:
+        assert os.path.isfile(path1)
+        shutil.copyfile(path1, path2)
+
+
 def get_listed_packages():
     """Returns a set of packages listed in `listed_packages`"""
     packages = set()
@@ -58,6 +105,44 @@ def check_exists(repo_path, system_path):
     return False
 
 
+def install_config_files(config_path):
+    for f, system_config_file_path in config.config_files.iteritems():
+        repo_config_file_path = os.path.join(config_path, f)
+        if not os.path.exists(repo_config_file_path):
+            print_msg(repo_config_file_path + " does not exist", colors.RED)
+        else:
+            if os.path.exists(system_config_file_path):
+                retcode = subprocess.call(['diff', repo_config_file_path,
+                                           system_config_file_path])
+                if retcode != 0:
+                    safe_copy(repo_config_file_path, system_config_file_path)
+                else:
+                    print_msg("Files %s and %s match, skipping install"
+                              % (repo_config_file_path, system_config_file_path))
+            else:
+                safe_copy(repo_config_file_path, system_config_file_path)
+
+
+def update_config_files(config_path):
+    for f, system_config_file_path in config.config_files.iteritems():
+        repo_config_file_path = os.path.join(config_path, f)
+        if not os.path.exists(system_config_file_path):
+            print_msg(repo_config_file_path + " does not exist", colors.RED)
+        else:
+            if not os.path.exists(repo_config_file_path):
+                safe_copy(system_config_file_path, repo_config_file_path)
+            else:
+                retcode = subprocess.call(['diff', repo_config_file_path,
+                                           system_config_file_path])
+                if retcode != 0:
+                    if yes_no_choice("Update config file with system config file (< is config file, > is system config file)? [y/N]: ", False):
+                        safe_copy(system_config_file_path, repo_config_file_path, False)
+                    else:
+                        print_msg("Skipping update of file " + f)
+                else:
+                    print_msg("Files match, skipping update of file " + f)
+
+
 def config_diff(output, config_path):
     out_file = None
     if output == False:
@@ -73,6 +158,57 @@ def config_diff(output, config_path):
                 print_msg(f + " matches", colors.BLUE)
             else:
                 print_msg(f + " differs", colors.YELLOW)
+
+
+def handle_config(args):
+    if not check_var_exists('config_files'):
+        return
+
+    config_path = args.config_path
+    if not os.path.isabs(config_path):
+        config_path = os.path.join(os.getcwd(), config_path)
+
+    if not os.path.exists(config_path):
+        print_msg("Directory %s does not exist" % config_path, colors.RED)
+        return
+
+    if args.diff:
+        config_diff(False, config_path)
+    elif args.diff_file:
+        config_diff(True, config_path)
+    elif args.install:
+        install_config_files(config_path)
+    elif args.update:
+        update_config_files(config_path)
+    else:
+        raise ValueError("Argument required for config subcommand")
+
+def handle_list(args):
+    if not check_var_exists('packages'):
+        return
+
+    packages = get_listed_packages()
+    groups = get_listed_groups(packages)
+    groups.append('base')
+    installed_packages = get_installed_packages(groups)
+
+    diff = None
+    if not args.inverse:
+        # Print all packages that are installed but not listed in the script
+        diff = list(installed_packages.difference(packages))
+    else:
+        # Packages listed in the script but not installed
+        diff = list(packages.difference(installed_packages))
+
+    diff.sort()
+    print '\n'.join(diff)
+
+
+def handle_install(args):
+    if not check_var_exists('packages'):
+        return
+
+    raise NotImplementedError
 
 
 def parse_arguments():
@@ -104,133 +240,6 @@ def parse_arguments():
                                help="Update config files in repo")
 
     return parser.parse_args()
-
-
-def handle_install(args):
-    if not check_var_exists('packages'):
-        return
-
-    raise NotImplementedError
-
-
-def check_all(func, args):
-    return all(map(func, args))
-
-
-def safe_copy(path1, path2, safe=True):
-    """Safely copies path1 to path2, backing up any file originally at path2 as
-    path2.bak"""
-    if safe and os.path.exists(path2):
-        if not (check_all(os.path.isdir, [path1, path2]) or check_all(os.path.isfile, [path1, path2])):
-            print_msg("Both paths must either be only files or only directories", colors.RED)
-            return
-        safe_copy(path2, os.path.normpath(path2) + ".bak")
-
-    print_msg("Copying %s to %s" % (path1, path2), colors.BLUE)
-    if os.path.isdir(path1):
-        shutil.copytree(path1, path2)
-    else:
-        assert os.path.isfile(path1)
-        shutil.copyfile(path1, path2)
-
-
-def check_var_exists(var_name):
-    if not (hasattr(config, var_name) and type(config.config_files) == dict):
-        print_msg("config.py must contain a dictionary called `%s`" % var_name,
-                  colors.RED)
-        return False
-    return True
-
-def handle_config(args):
-    if not check_var_exists('config_files'):
-        return
-
-    config_path = args.config_path
-    if not os.path.isabs(config_path):
-        config_path = os.path.join(os.getcwd(), config_path)
-
-    if not os.path.exists(config_path):
-        print_msg("Directory %s does not exist" % config_path, colors.RED)
-        return
-
-    if args.diff:
-        config_diff(False, config_path)
-    elif args.diff_file:
-        config_diff(True, config_path)
-    elif args.install:
-        for f, system_config_file_path in config.config_files.iteritems():
-            repo_config_file_path = os.path.join(config_path, f)
-            if not os.path.exists(repo_config_file_path):
-                print_msg(repo_path + " does not exist", colors.RED)
-            else:
-                if os.path.exists(system_config_file_path):
-                    retcode = subprocess.call(['diff', repo_config_file_path,
-                                               system_config_file_path])
-                    if retcode != 0:
-                        safe_copy(repo_config_file_path, system_config_file_path)
-                    else:
-                        print_msg("Files %s and %s match, skipping install"
-                                  % (repo_config_file_path, system_config_file_path))
-                else:
-                    safe_copy(repo_config_file_path, system_config_file_path)
-    elif args.update:
-        for f, system_config_file_path in config.config_files.iteritems():
-            repo_config_file_path = os.path.join(config_path, f)
-            if not os.path.exists(system_config_file_path):
-                print_msg(repo_path + " does not exist", colors.RED)
-            else:
-                if not os.path.exists(repo_config_file_path):
-                    safe_copy(system_config_file_path, repo_config_file_path)
-                else:
-                    retcode = subprocess.call(['diff', repo_config_file_path,
-                                               system_config_file_path])
-                    if retcode != 0:
-                        if yes_no_choice("Update config file with system config file (< is config file, > is system config file)? [y/N]: ", False):
-                            safe_copy(system_config_file_path, repo_config_file_path, False)
-                        else:
-                            print_msg("Skipping update of file " + f)
-                    else:
-                        print_msg("Files match, skipping update of file " + f)
-    else:
-        raise ValueError("Argument required for config subcommand")
-
-
-def yes_no_choice(prompt, default_yes):
-    yes = set(['yes', 'y', 'ye'])
-    no = set(['no','n'])
-
-    if default_yes:
-        yes.add('')
-    else:
-        no.add('')
-
-    choice = raw_input(prompt).lower()
-    if choice in yes:
-       return True
-    elif choice in no:
-       return False
-    else:
-       sys.stdout.write("Please respond with 'y' or 'n'")
-
-def handle_list(args):
-    if not check_var_exists('packages'):
-        return
-
-    packages = get_listed_packages()
-    groups = get_listed_groups(packages)
-    groups.append('base')
-    installed_packages = get_installed_packages(groups)
-
-    diff = None
-    if not args.inverse:
-        # Print all packages that are installed but not listed in the script
-        diff = list(installed_packages.difference(packages))
-    else:
-        # Packages listed in the script but not installed
-        diff = list(packages.difference(installed_packages))
-
-    diff.sort()
-    print '\n'.join(diff)
 
 
 def main():
