@@ -7,5 +7,5 @@ packages = {
 # List the name of the file in the config_files folder as the key, and the
 # full path to the file as the value (~ for the home directory is not supported)
 config_files = {
-    'bashrc': '/home/gulshan/.bashrc'
+    'bashrc': '/home/user/.bashrc'
 }

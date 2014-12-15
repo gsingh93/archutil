@@ -143,21 +143,68 @@ def update_config_files(config_path):
                     print_msg("Files match, skipping update of file " + f)
 
 
-def config_diff(output, config_path):
-    out_file = None
-    if output == False:
-        out_file = open(os.devnull, 'w')
+class DiffResult:
+    MATCHES = 'Matches'
+    DIFFERS = 'Differs'
+    DOESNT_EXIST = "Doesn't exist"
 
-    for f, system_config_file_path in config.config_files.iteritems():
+    def __init__(self, backup_file_exists, system_file_exists, result,
+                 backup_config_file_path, system_config_file_path, diff_output):
+        self.backup_file_exists = backup_file_exists
+        self.system_file_exists = system_file_exists
+        self.result = result
+        self.backup_config_file_path = backup_config_file_path
+        self.system_config_file_path = system_config_file_path
+        self.diff_output = diff_output
+
+
+def config_diff(config_path, config_files):
+    results = []
+    for f, system_config_file_path in config_files.iteritems():
         repo_config_file_path = os.path.join(config_path, f)
-        if check_exists(repo_config_file_path, system_config_file_path):
-            retcode = subprocess.call(['diff', repo_config_file_path,
-                                       system_config_file_path],
-                                      stdout=out_file)
-            if retcode == 0:
-                print_msg(f + " matches", colors.BLUE)
+        backup_file_exists = os.path.exists(repo_config_file_path)
+        system_file_exists = os.path.exists(system_config_file_path)
+        if not backup_file_exists or not system_file_exists:
+            result = DiffResult(backup_file_exists, system_file_exists,
+                                DiffResult.DOESNT_EXIST, repo_config_file_path,
+                                system_config_file_path, '')
+            results.append(result)
+        else:
+            p = subprocess.Popen(['diff', repo_config_file_path,
+                                  system_config_file_path],
+                                 stdout=subprocess.PIPE)
+            diff_output, _ = p.communicate()
+            diff_result = (DiffResult.MATCHES
+                           if p.returncode == 0 else DiffResult.DIFFERS)
+            result = DiffResult(backup_file_exists, system_file_exists,
+                                diff_result, repo_config_file_path,
+                                system_config_file_path, diff_output)
+            results.append(result)
+
+    assert len(results) == len(config_files)
+    return results
+
+
+def print_diff_results(results, output_diff):
+    for r in results:
+        if r.result == DiffResult.DOESNT_EXIST:
+            if not r.system_config_exists:
+                print_msg(r.system_config_file_path + ' does not exist',
+                          colors.YELLOW)
             else:
-                print_msg(f + " differs", colors.YELLOW)
+                assert not r.backup_config_exists
+                print_msg(r.backup_config_file_path + ' does not exist',
+                          colors.YELLOW)
+        elif r.result == DiffResult.MATCHES:
+            print_msg((r.system_config_file_path +
+                       ' matches ' + r.backup_config_file_path), colors.BLUE)
+        else:
+            assert r.result == DiffResult.DIFFERS
+            print_msg((r.system_config_file_path +
+                       ' differs from ' + r.backup_config_file_path),
+                      colors.YELLOW)
+            if output_diff:
+                print r.diff_output
 
 
 def handle_config(args):
@@ -173,9 +220,12 @@ def handle_config(args):
         return
 
     if args.diff:
-        config_diff(False, config_path)
+        print config.config_files
+        results = config_diff(config_path, config.config_files)
+        print_diff_results(results, False)
     elif args.diff_file:
-        config_diff(True, config_path)
+        results = config_diff(config_path, config.config_files)
+        print_diff_results(results, True)
     elif args.install:
         install_config_files(config_path)
     elif args.update:
