@@ -157,6 +157,15 @@ class DiffResult:
         self.system_config_path = system_config_path
         self.diff_output = diff_output
 
+    def __str__(self):
+        return str(self.__dict__)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        else:
+            return False
+
 
 def config_diff(config_path, config_files):
     results = []
