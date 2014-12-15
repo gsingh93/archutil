@@ -94,9 +94,9 @@ def get_installed_packages(groups):
     return set(packages)
 
 
-def check_exists(repo_path, system_path):
-    if not os.path.exists(repo_path):
-        print_msg(repo_path + " does not exist", colors.RED)
+def check_exists(backup_path, system_path):
+    if not os.path.exists(backup_path):
+        print_msg(backup_path + " does not exist", colors.RED)
     elif not os.path.exists(system_path):
         print_msg(system_path + " does not exist", colors.YELLOW)
     else:
@@ -106,37 +106,37 @@ def check_exists(repo_path, system_path):
 
 
 def install_config_files(config_path):
-    for f, system_config_file_path in config.config_files.iteritems():
-        repo_config_file_path = os.path.join(config_path, f)
-        if not os.path.exists(repo_config_file_path):
-            print_msg(repo_config_file_path + " does not exist", colors.RED)
+    for f, system_config_path in config.config_files.iteritems():
+        backup_config_path = os.path.join(config_path, f)
+        if not os.path.exists(backup_config_path):
+            print_msg(backup_config_path + " does not exist", colors.RED)
         else:
-            if os.path.exists(system_config_file_path):
-                retcode = subprocess.call(['diff', repo_config_file_path,
-                                           system_config_file_path])
+            if os.path.exists(system_config_path):
+                retcode = subprocess.call(['diff', backup_config_path,
+                                           system_config_path])
                 if retcode != 0:
-                    safe_copy(repo_config_file_path, system_config_file_path)
+                    safe_copy(backup_config_path, system_config_path)
                 else:
                     print_msg("Files %s and %s match, skipping install"
-                              % (repo_config_file_path, system_config_file_path))
+                              % (backup_config_path, system_config_path))
             else:
-                safe_copy(repo_config_file_path, system_config_file_path)
+                safe_copy(backup_config_path, system_config_path)
 
 
 def update_config_files(config_path):
-    for f, system_config_file_path in config.config_files.iteritems():
-        repo_config_file_path = os.path.join(config_path, f)
-        if not os.path.exists(system_config_file_path):
-            print_msg(repo_config_file_path + " does not exist", colors.RED)
+    for f, system_config_path in config.config_files.iteritems():
+        backup_config_path = os.path.join(config_path, f)
+        if not os.path.exists(system_config_path):
+            print_msg(backup_config_path + " does not exist", colors.RED)
         else:
-            if not os.path.exists(repo_config_file_path):
-                safe_copy(system_config_file_path, repo_config_file_path)
+            if not os.path.exists(backup_config_path):
+                safe_copy(system_config_path, backup_config_path)
             else:
-                retcode = subprocess.call(['diff', repo_config_file_path,
-                                           system_config_file_path])
+                retcode = subprocess.call(['diff', backup_config_path,
+                                           system_config_path])
                 if retcode != 0:
                     if yes_no_choice("Update config file with system config file (< is config file, > is system config file)? [y/N]: ", False):
-                        safe_copy(system_config_file_path, repo_config_file_path, False)
+                        safe_copy(system_config_path, backup_config_path, False)
                     else:
                         print_msg("Skipping update of file " + f)
                 else:
@@ -148,37 +148,37 @@ class DiffResult:
     DIFFERS = 'Differs'
     DOESNT_EXIST = "Doesn't exist"
 
-    def __init__(self, backup_file_exists, system_file_exists, result,
-                 backup_config_file_path, system_config_file_path, diff_output):
-        self.backup_file_exists = backup_file_exists
-        self.system_file_exists = system_file_exists
+    def __init__(self, backup_config_exists, system_config_exists, result,
+                 backup_config_path, system_config_path, diff_output):
+        self.backup_config_exists = backup_config_exists
+        self.system_config_exists = system_config_exists
         self.result = result
-        self.backup_config_file_path = backup_config_file_path
-        self.system_config_file_path = system_config_file_path
+        self.backup_config_path = backup_config_path
+        self.system_config_path = system_config_path
         self.diff_output = diff_output
 
 
 def config_diff(config_path, config_files):
     results = []
-    for f, system_config_file_path in config_files.iteritems():
-        repo_config_file_path = os.path.join(config_path, f)
-        backup_file_exists = os.path.exists(repo_config_file_path)
-        system_file_exists = os.path.exists(system_config_file_path)
-        if not backup_file_exists or not system_file_exists:
-            result = DiffResult(backup_file_exists, system_file_exists,
-                                DiffResult.DOESNT_EXIST, repo_config_file_path,
-                                system_config_file_path, '')
+    for f, system_config_path in config_files.iteritems():
+        backup_config_path = os.path.join(config_path, f)
+        backup_config_exists = os.path.exists(backup_config_path)
+        system_config_exists = os.path.exists(system_config_path)
+        if not backup_config_exists or not system_config_exists:
+            result = DiffResult(backup_config_exists, system_config_exists,
+                                DiffResult.DOESNT_EXIST, backup_config_path,
+                                system_config_path, '')
             results.append(result)
         else:
-            p = subprocess.Popen(['diff', repo_config_file_path,
-                                  system_config_file_path],
+            p = subprocess.Popen(['diff', backup_config_path,
+                                  system_config_path],
                                  stdout=subprocess.PIPE)
             diff_output, _ = p.communicate()
             diff_result = (DiffResult.MATCHES
                            if p.returncode == 0 else DiffResult.DIFFERS)
-            result = DiffResult(backup_file_exists, system_file_exists,
-                                diff_result, repo_config_file_path,
-                                system_config_file_path, diff_output)
+            result = DiffResult(backup_config_exists, system_config_exists,
+                                diff_result, backup_config_path,
+                                system_config_path, diff_output)
             results.append(result)
 
     assert len(results) == len(config_files)
@@ -189,19 +189,19 @@ def print_diff_results(results, output_diff):
     for r in results:
         if r.result == DiffResult.DOESNT_EXIST:
             if not r.system_config_exists:
-                print_msg(r.system_config_file_path + ' does not exist',
+                print_msg(r.system_config_path + ' does not exist',
                           colors.YELLOW)
             else:
                 assert not r.backup_config_exists
-                print_msg(r.backup_config_file_path + ' does not exist',
+                print_msg(r.backup_config_path + ' does not exist',
                           colors.YELLOW)
         elif r.result == DiffResult.MATCHES:
-            print_msg((r.system_config_file_path +
-                       ' matches ' + r.backup_config_file_path), colors.BLUE)
+            print_msg((r.system_config_path +
+                       ' matches ' + r.backup_config_path), colors.BLUE)
         else:
             assert r.result == DiffResult.DIFFERS
-            print_msg((r.system_config_file_path +
-                       ' differs from ' + r.backup_config_file_path),
+            print_msg((r.system_config_path +
+                       ' differs from ' + r.backup_config_path),
                       colors.YELLOW)
             if output_diff:
                 print r.diff_output
@@ -220,7 +220,6 @@ def handle_config(args):
         return
 
     if args.diff:
-        print config.config_files
         results = config_diff(config_path, config.config_files)
         print_diff_results(results, False)
     elif args.diff_file:
@@ -287,7 +286,7 @@ def parse_arguments():
     group.add_argument('-i', '--install', action='store_true',
                                help="Install config files on system")
     group.add_argument('-u', '--update', action='store_true',
-                               help="Update config files in repo")
+                               help="Update config files in backup folder")
 
     return parser.parse_args()
 
