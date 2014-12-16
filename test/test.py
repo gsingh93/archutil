@@ -22,8 +22,6 @@ class TestListFunctions(unittest.TestCase):
 
 
 class TestConfigFunctions(unittest.TestCase):
-    config_handler = ConfigHandler()
-
     install_ref_dir = os.path.join(os.getcwd(), 'install_ref_dir')
     update_ref_dir = os.path.join(os.getcwd(), 'update_ref_dir')
     test_dir = os.path.join(os.getcwd(), 'test_dir')
@@ -36,6 +34,8 @@ class TestConfigFunctions(unittest.TestCase):
     bak_only_config = os.path.join(config_dir, 'backup_config')
     non_existant_system_config = os.path.join(test_dir, 'backup_config')
 
+    config_handler = None
+
     def assert_dirs_equal(self, dir1, dir2):
         def helper(dcmp):
             assert (len(dcmp.left_only) == 0 and len(dcmp.right_only) == 0
@@ -47,6 +47,8 @@ class TestConfigFunctions(unittest.TestCase):
         helper(dcmp)
 
     def setUp(self):
+        self.config_handler = ConfigHandler(self.config_dir)
+
         assert not os.path.exists(self.test_dir)
         os.makedirs(self.config_dir)
 

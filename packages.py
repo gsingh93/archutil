@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 
 import argparse
+import imp
 import os
 import re
 import subprocess
 import shutil
-import config
+import sys
+
+# Imported in main
+config = None
 
 
 class colors:
@@ -69,6 +73,9 @@ class ListHandler:
 
 
 class ConfigHandler:
+    def __init__(self, configs_dir):
+        self.configs_dir = configs_dir
+
     class DiffResult:
         MATCHES = 'Matches'
         DIFFERS = 'Differs'
@@ -221,15 +228,7 @@ class ConfigHandler:
                     print r.diff_output
 
     def handle(self, args):
-        config_path = args.config_path
-        if not os.path.isabs(config_path):
-            config_path = os.path.join(os.getcwd(), config_path)
-
-        if not os.path.exists(config_path):
-            print_msg("Directory %s does not exist" % config_path, colors.RED)
-            return
-
-        results = config_diff(config_path, config.config_files)
+        results = self.config_diff(self.configs_dir, config.config_files)
         if args.diff:
             self.print_diff_results(results, False)
         elif args.diff_file:
@@ -315,6 +314,7 @@ class InstallHandler:
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Package management utility")
+    parser.add_argument('-c', '--config-path', help='Path to configy.py')
     subparsers = parser.add_subparsers(dest='subcommand')
 
     install_parser = subparsers.add_parser(
@@ -333,9 +333,9 @@ def parse_arguments():
     config_parser = subparsers.add_parser(
         'config', help="Operations dealing with configuration files")
     config_parser.add_argument(
-        '-c', '--config-path',
-        help=('Absolute or relative directory path to where configuration files'
-              'are stored'), default='config_files')
+        '-cd', '--configs-dir',
+        help='Path to directory where configuration files are stored',
+        default='config_files')
 
     group = config_parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-d', '--diff', action='store_true',
@@ -365,9 +365,40 @@ def validate_config_file():
             and check_var_exists('required_repos', list))
 
 
+def get_config_file_path(args):
+    config_file_path = os.path.join(os.getcwd(), 'config.py')
+    if args.config_path != None:
+        if os.path.isabs(args.config_path):
+            config_file_path = args.config_path
+        else:
+            config_file_path = os.path.join(os.getcwd(), args.config_file)
+
+    if not os.path.exists(config_file_path):
+        print_msg("%s does not exist" % config_file_path, colors.RED)
+        sys.exit(1)
+
+    return config_file_path
+
+def get_configs_dir_path(args, config_file_path):
+    configs_dir = os.path.join(config_file_path, 'config_files')
+    if args.configs_dir != None:
+        if os.path.isabs(args.configs_dir):
+            configs_dir = args.configs_dir
+        else:
+            configs_dir = os.path.join(os.getcwd(), args.configs_dir)
+
+    if not os.path.exists(configs_dir):
+        print_msg("%s does not exist" % configs_dir, colors.RED)
+        sys.exit(1)
+
+    return configs_dir
+
 def main():
     args = parse_arguments()
+    config_file_path = get_config_file_path(args)
 
+    global config
+    config = imp.load_source('config', config_file_path)
     validate_config_file()
 
     handler = None
@@ -376,7 +407,8 @@ def main():
     elif args.subcommand == 'list':
         handler = ListHandler()
     elif args.subcommand == 'config':
-        handler = ConfigHandler()
+        configs_dir = get_configs_dir_path(args, config_file_path)
+        handler = ConfigHandler(configs_dir)
     else:
         raise ValueError("Invalid subcommand")
 
