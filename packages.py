@@ -41,11 +41,11 @@ def yes_no_choice(prompt, default_yes):
 
     choice = raw_input(prompt).lower()
     if choice in yes:
-       return True
+        return True
     elif choice in no:
-       return False
+        return False
     else:
-       sys.stdout.write("Please respond with 'y' or 'n'")
+        printc("Please respond with 'y' or 'n'", colors.YELLOW)
 
 
 def check_all(func, args):
@@ -122,23 +122,27 @@ def install_config_files(results):
 
 
 def update_config_files(results):
-    for f, system_config_path in config.config_files.iteritems():
-        backup_config_path = os.path.join(config_path, f)
-        if not os.path.exists(system_config_path):
-            print_msg(backup_config_path + " does not exist", colors.RED)
+    for r in results:
+        if not r.system_config_exists:
+            print_msg(r.system_config_path + " does not exist", colors.RED)
         else:
-            if not os.path.exists(backup_config_path):
-                safe_copy(system_config_path, backup_config_path)
-            else:
-                retcode = subprocess.call(['diff', backup_config_path,
-                                           system_config_path])
-                if retcode != 0:
-                    if yes_no_choice("Update config file with system config file (< is config file, > is system config file)? [y/N]: ", False):
-                        safe_copy(system_config_path, backup_config_path, False)
-                    else:
-                        print_msg("Skipping update of file " + f)
+            if r.backup_config_exists:
+                if r.result == DiffResult.MATCHES:
+                    print_msg("Files match, skipping update of "
+                              + r.backup_config_path)
                 else:
-                    print_msg("Files match, skipping update of file " + f)
+                    assert r.result == DiffResult.DIFFERS
+
+                    prompt = ('Update config file with system config '
+                              'file (< is config file, > is system '
+                              'config file)? [y/N]: ')
+
+                    choice = yes_no_choice(prompt, False)
+                    while choice == None:
+                        choice = yes_no_choice(prompt, False)
+                    if choice:
+                        safe_copy(r.system_config_path, r.backup_config_path,
+                                  False)
 
 
 class DiffResult:
