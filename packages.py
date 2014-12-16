@@ -105,25 +105,23 @@ def check_exists(backup_path, system_path):
     return False
 
 
-def install_config_files(config_path):
-    for f, system_config_path in config.config_files.iteritems():
-        backup_config_path = os.path.join(config_path, f)
-        if not os.path.exists(backup_config_path):
-            print_msg(backup_config_path + " does not exist", colors.RED)
+def install_config_files(results):
+    for r in results:
+        if not r.backup_config_exists:
+            print_msg(r.backup_config_path + " does not exist", colors.RED)
         else:
-            if os.path.exists(system_config_path):
-                retcode = subprocess.call(['diff', backup_config_path,
-                                           system_config_path])
-                if retcode != 0:
-                    safe_copy(backup_config_path, system_config_path)
+            if r.system_config_exists:
+                if r.result == DiffResult.DIFFERS:
+                    safe_copy(r.backup_config_path, r.system_config_path)
                 else:
-                    print_msg("Files %s and %s match, skipping install"
-                              % (backup_config_path, system_config_path))
+                    assert r.result == DiffResult.MATCHES
+                    print_msg("%s and %s match, skipping install"
+                              % (r.backup_config_path, r.system_config_path))
             else:
-                safe_copy(backup_config_path, system_config_path)
+                safe_copy(r.backup_config_path, r.system_config_path)
 
 
-def update_config_files(config_path):
+def update_config_files(results):
     for f, system_config_path in config.config_files.iteritems():
         backup_config_path = os.path.join(config_path, f)
         if not os.path.exists(system_config_path):
@@ -228,16 +226,15 @@ def handle_config(args):
         print_msg("Directory %s does not exist" % config_path, colors.RED)
         return
 
+    results = config_diff(config_path, config.config_files)
     if args.diff:
-        results = config_diff(config_path, config.config_files)
         print_diff_results(results, False)
     elif args.diff_file:
-        results = config_diff(config_path, config.config_files)
         print_diff_results(results, True)
     elif args.install:
-        install_config_files(config_path)
+        install_config_files(results)
     elif args.update:
-        update_config_files(config_path)
+        update_config_files(results)
     else:
         raise ValueError("Argument required for config subcommand")
 
