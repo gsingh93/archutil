@@ -373,7 +373,7 @@ def get_config_file_path(args):
         else:
             config_file_path = os.path.join(os.getcwd(), args.config_file)
 
-    if not os.path.exists(config_file_path):
+    if not os.path.isfile(config_file_path):
         print_msg("%s does not exist" % config_file_path, colors.RED)
         sys.exit(1)
 
@@ -387,7 +387,7 @@ def get_configs_dir_path(args, config_file_path):
         else:
             configs_dir = os.path.join(os.getcwd(), args.configs_dir)
 
-    if not os.path.exists(configs_dir):
+    if not os.path.isdir(configs_dir):
         print_msg("%s does not exist" % configs_dir, colors.RED)
         sys.exit(1)
 
