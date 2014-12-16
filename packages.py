@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import re
 import subprocess
 import shutil
 import config
@@ -22,10 +23,8 @@ def print_msg(m, color=colors.DEFAULT):
     printc("========== %s ==========" % m, color)
 
 
-def check_var_exists(var_name):
-    if not (hasattr(config, var_name) and type(config.config_files) == dict):
-        print_msg("config.py must contain a dictionary called `%s`" % var_name,
-                  colors.RED)
+def check_var_exists(var_name, t):
+    if not (hasattr(config, var_name) and type(getattr(config, var_name)) == t):
         return False
     return True
 
@@ -219,9 +218,6 @@ def print_diff_results(results, output_diff):
 
 
 def handle_config(args):
-    if not check_var_exists('config_files'):
-        return
-
     config_path = args.config_path
     if not os.path.isabs(config_path):
         config_path = os.path.join(os.getcwd(), config_path)
@@ -243,9 +239,6 @@ def handle_config(args):
         raise ValueError("Argument required for config subcommand")
 
 def handle_list(args):
-    if not check_var_exists('packages'):
-        return
-
     packages = get_listed_packages()
     groups = get_listed_groups(packages)
     groups.append('base')
@@ -264,8 +257,11 @@ def handle_list(args):
 
 
 def handle_install(args):
-    if not check_var_exists('packages'):
-        return
+    f = open('/etc/pacman.conf').read()
+    for repo in config.required_repos:
+        if re.search(r'\[%s\]' % repo, f, re.MULTILINE) == None:
+            print_msg("Error: %s repository is not enabled" % repo, colors.RED)
+            return
 
     raise NotImplementedError
 
@@ -303,6 +299,18 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
+
+    msg = "config.py must contain a %s called `%s`"
+    if not check_var_exists('packages', dict):
+        print_msg(msg % ('dictionary', 'packages'), colors.RED)
+        return
+    if not check_var_exists('config_files', dict):
+        print_msg(msg % ('dictionary', 'config_files'), colors.RED)
+        return
+    if not check_var_exists('required_repos', list):
+        print_msg(msg % ('list', 'required_repos'), colors.RED)
+        return
+
 
     if args.subcommand == 'install':
         handle_install(args)

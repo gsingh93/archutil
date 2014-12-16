@@ -1,3 +1,6 @@
+# Non-standard repositories required to install packages
+required_repos = ['multilib']
+
 # List the packages with their categories below
 packages = {
     'category': ['package1',
