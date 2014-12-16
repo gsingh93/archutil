@@ -8,9 +8,8 @@ import sys
 import unittest
 
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
-import packages
-from packages import DiffResult
-
+from packages import ConfigHandler, InstallHandler, ListHandler
+DiffResult = ConfigHandler.DiffResult
 
 class TestInstallFunctions(unittest.TestCase):
     def setUp(self):
@@ -23,6 +22,8 @@ class TestListFunctions(unittest.TestCase):
 
 
 class TestConfigFunctions(unittest.TestCase):
+    config_handler = ConfigHandler()
+
     install_ref_dir = os.path.join(os.getcwd(), 'install_ref_dir')
     update_ref_dir = os.path.join(os.getcwd(), 'update_ref_dir')
     test_dir = os.path.join(os.getcwd(), 'test_dir')
@@ -77,7 +78,7 @@ class TestConfigFunctions(unittest.TestCase):
 
         for f, r in zip(files, expected_results):
             config_files = {os.path.basename(f): f}
-            result = packages.config_diff(self.config_dir, config_files)[0]
+            result = self.config_handler.config_diff(self.config_dir, config_files)[0]
             r.backup_config_path = os.path.join(self.config_dir,
                                                 os.path.basename(f))
             r.system_config_path = f
@@ -90,8 +91,8 @@ class TestConfigFunctions(unittest.TestCase):
             os.path.basename(self.sys_only_config): self.sys_only_config,
             os.path.basename(self.bak_only_config): self.non_existant_system_config,
         }
-        results = packages.config_diff(self.config_dir, config_files)
-        packages.install_config_files(results)
+        results = self.config_handler.config_diff(self.config_dir, config_files)
+        self.config_handler.install_config_files(results)
         self.assert_dirs_equal(self.test_dir, self.install_ref_dir)
 
     def test_update_config_files(self):
@@ -101,11 +102,11 @@ class TestConfigFunctions(unittest.TestCase):
             os.path.basename(self.sys_only_config): self.sys_only_config,
             os.path.basename(self.bak_only_config): self.non_existant_system_config,
         }
-        results = packages.config_diff(self.config_dir, config_files)
+        results = self.config_handler.config_diff(self.config_dir, config_files)
 
         old_stdin = sys.stdin
         sys.stdin = StringIO.StringIO('y')
-        packages.update_config_files(results)
+        self.config_handler.update_config_files(results)
         sys.stdin = old_stdin
 
         self.assert_dirs_equal(self.test_dir, self.update_ref_dir)
