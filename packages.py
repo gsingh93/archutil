@@ -243,15 +243,74 @@ class ConfigHandler:
 
 
 class InstallHandler:
-    def handle(self, args):
+    def check_packages_exist(self, packages):
+        bad_packages = []
+        dev_null = open(os.devnull, 'w')
+        for l in packages.itervalues():
+            for p in l:
+                retcode = subprocess.call(['pacman', '-Ss', p], stdout=dev_null)
+                if retcode != 0:
+                    bad_packages.append(p)
+
+        return bad_packages
+
+    def check_required_repos(self):
+        repos = []
         f = open('/etc/pacman.conf').read()
         for repo in config.required_repos:
             if re.search(r'\[%s\]' % repo, f, re.MULTILINE) == None:
-                print_msg("Error: %s repository is not enabled" % repo,
-                          colors.RED)
-                return
+                repos.add(repo)
+        return repos
 
-        raise NotImplementedError
+    def update_repos(self):
+        dev_null = open(os.devnull, 'w')
+        printc('Updating package database, enter sudo password if prompted',
+               colors.YELLOW)
+        return subprocess.call(['sudo', 'pacman', '-Sy'], stdout=dev_null) == 0
+
+    def do_install(self, packages, categories):
+        package_list = []
+        for category in categories:
+            package_list += packages[category]
+
+        command = ['sudo', 'pacman', '-S', '--needed']
+        command.extend(package_list)
+        subprocess.check_call(command)
+
+    def handle(self, args):
+        repos = self.check_required_repos()
+        if len(repos) > 0:
+            print_msg('The following repos must be enabled before package '
+                      'installation can continue: ' + ', '.join(repos),
+                      colors.RED)
+            return
+
+        if not self.update_repos():
+            print_msg('Failed to update package database', colors.RED)
+            return
+        print_msg('Update successful', colors.BLUE)
+
+        bad_packages = self.check_packages_exist(config.packages)
+        if len(bad_packages) > 0:
+            print_msg('The following packages could not be found in the repos '
+                      'and must be removed before installation can continue: '
+                      + ', '.join(bad_packages), colors.RED)
+            return
+
+        categories = None
+        if args.categories != None:
+            categories = args.categories
+            for category in categories:
+                if category not in config.packages:
+                    print_msg('Package category %s does not exist' % category,
+                    colors.RED)
+                    return
+        else:
+            categories = config.packages.keys()
+
+        print_msg('Installing packages', colors.BLUE)
+        self.do_install(config.packages, categories)
+        print_msg('Install complete', colors.BLUE)
 
 
 def parse_arguments():
@@ -260,6 +319,8 @@ def parse_arguments():
 
     install_parser = subparsers.add_parser(
         'install', help=('Installs specified package groups'))
+    install_parser.add_argument('--categories', nargs='+',
+                                help='Package categories to install')
 
     list_parser = subparsers.add_parser(
         'list',
