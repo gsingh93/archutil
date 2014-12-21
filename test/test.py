@@ -13,8 +13,7 @@ from packages import ConfigHandler, InstallHandler, ListHandler
 DiffResult = ConfigHandler.DiffResult
 
 chroot_message = ('an ArchLinux chroot called "chroot" must be present in the '
-                  'test directory. See https://wiki.archlinux.org/index.php/DeveloperWiki:Building_in_a_Clean_Chroot#Setting_Up_A_Chroot '
-                  'for more details')
+                  'test directory. See `setup-chroot.sh` for more details.')
 chroot_dir = 'chroot/root'
 
 
