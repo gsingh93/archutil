@@ -4,6 +4,7 @@ import filecmp
 import os
 import shutil
 import StringIO
+import subprocess
 import sys
 import unittest
 
@@ -11,14 +12,57 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from packages import ConfigHandler, InstallHandler, ListHandler
 DiffResult = ConfigHandler.DiffResult
 
+chroot_message = ('an ArchLinux chroot called "chroot" must be present in the '
+                  'test directory. See https://wiki.archlinux.org/index.php/DeveloperWiki:Building_in_a_Clean_Chroot#Setting_Up_A_Chroot '
+                  'for more details')
+chroot_dir = 'chroot/root'
+
+
+@unittest.skipIf(not os.path.isdir(chroot_dir), chroot_message)
 class TestInstallFunctions(unittest.TestCase):
     def setUp(self):
-        pass
+        assert os.path.isdir(chroot_dir)
+        self.cwd = os.getcwd()
+        self.real_root = os.open('/', os.O_RDONLY)
+        os.chroot(chroot_dir)
+
+    def test_do_install(self):
+        install_handler = InstallHandler()
+        install_handler.update_repos()
+
+        install_handler.do_install({'all': ['wget']}, ['all'], True)
+
+        assert 'wget' in subprocess.check_output(['pacman', '-Qe'])
+        subprocess.check_call(['pacman', '-Rns', 'wget', '--noconfirm'])
+        assert 'wget' not in subprocess.check_output(['pacman', '-Qe'])
+
+    def tearDown(self):
+        os.fchdir(self.real_root)
+        os.chroot('.')
+        os.close(self.real_root)
+        os.chdir(self.cwd)
 
 
+@unittest.skipIf(not os.path.isdir(chroot_dir), chroot_message)
 class TestListFunctions(unittest.TestCase):
     def setUp(self):
-        pass
+        assert os.path.isdir(chroot_dir)
+        self.cwd = os.getcwd()
+        self.real_root = os.open('/', os.O_RDONLY)
+        os.chroot(chroot_dir)
+
+    def test_list(self):
+        list_handler = ListHandler()
+        package_list = list_handler.get_installed_packages(['base'])
+        assert package_list == set(['flex', 'gcc', 'groff', 'make', 'patch',
+                                'automake', 'm4', 'fakeroot', 'bison', 'libtool',
+                                'autoconf', 'sudo', 'binutils', 'pkg-config'])
+
+    def tearDown(self):
+        os.fchdir(self.real_root)
+        os.chroot('.')
+        os.close(self.real_root)
+        os.chdir(self.cwd)
 
 
 class TestConfigFunctions(unittest.TestCase):

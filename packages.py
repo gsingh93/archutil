@@ -30,7 +30,7 @@ def print_msg(m, color=colors.DEFAULT):
 
 class ListHandler:
     def get_listed_packages(self):
-        """Returns a set of packages listed in `listed_packages`"""
+        """Returns a set of packages listed in `config.packages`"""
         packages = set()
         for v in config.packages.itervalues():
             for s in v:
@@ -39,7 +39,8 @@ class ListHandler:
         return packages
 
     def get_listed_groups(self, packages):
-        """Returns a list of packages in `packages` that are actually groups"""
+        """Returns a list of packages in `config.packages` that are actually
+        groups"""
         command = "pacman -Sg %s | awk '{print $1}' | sort -u" \
                   % " ".join(packages)
         return subprocess.check_output(command, shell=True).rstrip().split('\n')
@@ -267,12 +268,19 @@ class InstallHandler:
                colors.YELLOW)
         return subprocess.call(['sudo', 'pacman', '-Sy'], stdout=dev_null) == 0
 
-    def do_install(self, packages, categories):
+    # TODO: Function shouldn't need to know about test code,
+    # but I can't figure out any other way :(
+    def do_install(self, packages, categories, test=False):
         package_list = []
         for category in categories:
             package_list += packages[category]
 
-        command = ['sudo', 'pacman', '-S', '--needed']
+        if not test:
+            command = ['sudo', 'pacman', '-S', '--needed']
+        else:
+            # Turn off confirmations in test mode
+            command = ['sudo', 'pacman', '-S', '--needed', '--noconfirm']
+
         command.extend(package_list)
         subprocess.check_call(command)
 
