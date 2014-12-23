@@ -335,7 +335,7 @@ def parse_arguments():
         help="Lists installed packages not already specified in config.py")
     list_parser.add_argument(
         '-i', '--inverse', action='store_true',
-        help=('Lists the inverse, i.e. all packages specified in config.py'
+        help=('Lists the inverse, i.e. all packages specified in config.py '
               'but not currently installed'))
 
     config_parser = subparsers.add_parser(
@@ -379,7 +379,7 @@ def get_config_file_path(args):
         if os.path.isabs(args.config_path):
             config_file_path = args.config_path
         else:
-            config_file_path = os.path.join(os.getcwd(), args.config_file)
+            config_file_path = os.path.join(os.getcwd(), args.config_path)
 
     if not os.path.isfile(config_file_path):
         print_msg("%s does not exist" % config_file_path, colors.RED)
