@@ -26,7 +26,7 @@ To see which files on the system differ from the files in your dotfiles repo, ru
 
 To install all the configuration files in the system with the files in the repo, run `./archutil.py config -i` to install the files. If a file already exists at the path of the system file, a `.bak` extension will be added to the original file. To update files in the repo with files in the system, run `./archutil.py config -u`. This will show the diff for each configuration file and prompt you to update the file in the repo with the file in the system.
 
-`archutil` will look in a directory named `config_files` in the same folder as the `archutil` script by default. If you would like to specify a different folder to search for the config files, you can use the `-cd` or `--configs-dir` flags, i.e. `./archutil.py config -cd /path/to/config/files -d`. Alternatively, you can define a variable named `configs_dir` in `config.py` that contains a path to the configuration file directory.
+`archutil` will look in a directory named `config_files` in the same folder as the `archutil` script by default. If you would like to specify a different folder to search for the config files, you can use the `-cd` or `--configs-dir` flags, i.e. `./archutil.py config -cd /path/to/config/files -d`. Alternatively, you can define a variable named `configs_dir` in `config.py` that contains a path to the configuration file directory. If the path is a relative path, it should be relative to the `config.py` script, not `archutil.py`.
 
 Misc features
 -------------

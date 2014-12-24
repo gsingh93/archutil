@@ -407,6 +407,14 @@ def get_config_file_path(args):
     return config_file_path
 
 def get_configs_dir_path(args, config_file_path):
+    if does_var_exist('configs_dir', str):
+        if os.path.isabs(args.configs_dir):
+            configs_dir = args.configs_dir
+        else:
+            configs_dir = os.path.join(os.path.dirname(config_file_path),
+                                       args.configs_dir)
+        return configs_dir
+
     configs_dir = os.path.join(config_file_path, 'config_files')
     if args.configs_dir != None:
         if os.path.isabs(args.configs_dir):
