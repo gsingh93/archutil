@@ -243,10 +243,10 @@ class ConfigHandler:
 
 
 class InstallHandler:
-    def check_packages_exist(self, packages):
+    def check_packages_exist(self, packages, categories):
         bad_packages = []
         dev_null = open(os.devnull, 'w')
-        for l in packages.itervalues():
+        for l in [packages[c] for c in categories]:
             for p in l:
                 retcode = subprocess.call(['pacman', '-Ss', p], stdout=dev_null)
                 if retcode != 0:
@@ -285,6 +285,7 @@ class InstallHandler:
         subprocess.check_call(command)
 
     def handle(self, args):
+        # Make sure all required repos are available
         repos = self.check_required_repos()
         if len(repos) > 0:
             print_msg('The following repos must be enabled before package '
@@ -297,13 +298,7 @@ class InstallHandler:
             return
         print_msg('Update successful', colors.BLUE)
 
-        bad_packages = self.check_packages_exist(config.packages)
-        if len(bad_packages) > 0:
-            print_msg('The following packages could not be found in the repos '
-                      'and must be removed before installation can continue: '
-                      + ', '.join(bad_packages), colors.RED)
-            return
-
+        # Get list of categories to install
         categories = None
         if args.categories != None:
             categories = args.categories
@@ -314,6 +309,15 @@ class InstallHandler:
                     return
         else:
             categories = config.packages.keys()
+
+        # Make sure all packages to be installed exist
+        printc("Checking that all packages exist...", colors.YELLOW)
+        bad_packages = self.check_packages_exist(config.packages, categories)
+        if len(bad_packages) > 0:
+            print_msg('The following packages could not be found in the repos '
+                      'and must be removed before installation can continue: '
+                      + ', '.join(bad_packages), colors.RED)
+            return
 
         print_msg('Installing packages', colors.BLUE)
         self.do_install(config.packages, categories)
