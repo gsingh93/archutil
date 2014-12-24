@@ -4,6 +4,9 @@
 # Custom path to directory where configuration files are stored
 # configs_dir = '/path/to/config/files'
 
+# Use a package manager other than pacman (i.e. to support the AUR)
+pacman = 'yaourt'
+
 # List the packages with their categories below
 packages = {
     'category': ['package1',

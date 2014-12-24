@@ -29,6 +29,9 @@ def print_msg(m, color=colors.DEFAULT):
 
 
 class ListHandler:
+    def __init__(self, pacman):
+        self.pacman = pacman
+
     def get_listed_packages(self):
         """Returns a set of packages listed in `config.packages`"""
         packages = set()
@@ -41,13 +44,14 @@ class ListHandler:
     def get_listed_groups(self, packages):
         """Returns a list of packages in `config.packages` that are actually
         groups"""
-        command = "pacman -Sg %s | awk '{print $1}' | sort -u" \
+        command = self.pacman + " -Sg %s | awk '{print $1}' | sort -u" \
                   % " ".join(packages)
         return subprocess.check_output(command, shell=True).rstrip().split('\n')
 
     def get_installed_packages(self, groups):
         """Returns a set of installed packages"""
-        command = ("pacman -Qe | awk '{print $1}' | grep -Fxv -f <(pacman -Qg %s"
+        command = (self.pacman + " -Qe | awk '{print $1}'"
+                   "| grep -Fxv -f <(pacman -Qg %s"
                    "| awk '{print $2}')") % " ".join(groups)
         packages = subprocess.check_output(
             command, shell=True, executable="/bin/bash").rstrip().split('\n')
@@ -244,12 +248,16 @@ class ConfigHandler:
 
 
 class InstallHandler:
+    def __init__(self, pacman):
+        self.pacman = pacman
+
     def check_packages_exist(self, packages, categories):
         bad_packages = []
         dev_null = open(os.devnull, 'w')
         for l in [packages[c] for c in categories]:
             for p in l:
-                retcode = subprocess.call(['pacman', '-Ss', p], stdout=dev_null)
+                retcode = subprocess.call([self.pacman, '-Ss', p],
+                                          stdout=dev_null)
                 if retcode != 0:
                     bad_packages.append(p)
 
@@ -267,7 +275,7 @@ class InstallHandler:
         dev_null = open(os.devnull, 'w')
         printc('Updating package database, enter sudo password if prompted',
                colors.YELLOW)
-        return subprocess.call(['sudo', 'pacman', '-Sy'], stdout=dev_null) == 0
+        return subprocess.call(['sudo', self.pacman, '-Sy'], stdout=dev_null) == 0
 
     # TODO: Function shouldn't need to know about test code,
     # but I can't figure out any other way :(
@@ -277,10 +285,10 @@ class InstallHandler:
             package_list += packages[category]
 
         if not test:
-            command = ['sudo', 'pacman', '-S', '--needed']
+            command = ['sudo', self.pacman, '-S', '--needed']
         else:
             # Turn off confirmations in test mode
-            command = ['sudo', 'pacman', '-S', '--needed', '--noconfirm']
+            command = ['sudo', self.pacman, '-S', '--needed', '--noconfirm']
 
         command.extend(package_list)
         subprocess.check_call(command)
@@ -409,6 +417,12 @@ def get_configs_dir_path(args, config_file_path):
 
     return configs_dir
 
+def get_pacman():
+    if does_var_exist('pacman', str):
+        return config.pacman
+    else:
+        return 'pacman'
+
 def main():
     args = parse_arguments()
     config_file_path = get_config_file_path(args)
@@ -417,11 +431,13 @@ def main():
     config = imp.load_source('config', config_file_path)
     validate_config_file()
 
+    pacman = get_pacman();
+
     handler = None
     if args.subcommand == 'install':
-        handler = InstallHandler()
+        handler = InstallHandler(pacman)
     elif args.subcommand == 'list':
-        handler = ListHandler()
+        handler = ListHandler(pacman)
     elif args.subcommand == 'config':
         configs_dir = get_configs_dir_path(args, config_file_path)
         handler = ConfigHandler(configs_dir)
