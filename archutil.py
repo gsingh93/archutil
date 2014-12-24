@@ -263,7 +263,7 @@ class InstallHandler:
         # This is required in case packages are actually in the AUR
         # TODO: Use this https://wiki.archlinux.org/index.php/AurJson
         bad_packages = []
-        if self.pacman != 'pacman':
+        if os.path.basename(self.pacman) != 'pacman':
             for p in missing_packages:
                 retcode = subprocess.call(self.pacman + ' -Ssq %s | grep "^%s$"'
                                           % (p, p), shell=True, stdout=dev_null)
@@ -302,7 +302,7 @@ class InstallHandler:
             # Turn off confirmations in test mode
             command = [self.pacman, '-S', '--needed', '--noconfirm']
 
-        if command[0] == 'pacman':
+        if os.path.basename(command[0]) == 'pacman':
             command.insert(0, 'sudo')
 
         command.extend(package_list)
