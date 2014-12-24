@@ -285,10 +285,13 @@ class InstallHandler:
             package_list += packages[category]
 
         if not test:
-            command = ['sudo', self.pacman, '-S', '--needed']
+            command = [self.pacman, '-S', '--needed']
         else:
             # Turn off confirmations in test mode
-            command = ['sudo', self.pacman, '-S', '--needed', '--noconfirm']
+            command = [self.pacman, '-S', '--needed', '--noconfirm']
+
+        if command[0] == 'pacman':
+            command.insert(0, 'sudo')
 
         command.extend(package_list)
         subprocess.check_call(command)
