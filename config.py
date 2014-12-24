@@ -5,7 +5,7 @@
 # configs_dir = '/path/to/config/files'
 
 # Use a package manager other than pacman (i.e. to support the AUR)
-pacman = 'yaourt'
+# pacman = 'yaourt'
 
 # List the packages with their categories below
 packages = {

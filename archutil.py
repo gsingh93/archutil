@@ -32,14 +32,9 @@ class ListHandler:
     def __init__(self, pacman):
         self.pacman = pacman
 
-    def get_listed_packages(self):
+    def get_listed_packages(self, packages, categories):
         """Returns a set of packages listed in `config.packages`"""
-        packages = set()
-        for v in config.packages.itervalues():
-            for s in v:
-                packages.add(s)
-
-        return packages
+        return set([p for c in categories for p in packages[c]])
 
     def get_listed_groups(self, packages):
         """Returns a list of packages in `config.packages` that are actually
@@ -59,19 +54,28 @@ class ListHandler:
             packages[i] = packages[i].split()[0]
         return set(packages)
 
-    def handle(self, args):
-        packages = self.get_listed_packages()
+    def get_differing_packages(self, categories, inverse):
+        packages = self.get_listed_packages(config.packages, categories)
         groups = self.get_listed_groups(packages)
         groups.append('base')
         installed_packages = self.get_installed_packages(groups)
 
+        if not inverse:
+            return list(installed_packages.difference(packages))
+        else:
+            return list(packages.difference(installed_packages))
+
+    def handle(self, args):
+        categories = config.packages.keys()
         diff = None
         if not args.inverse:
             # Print all packages that are installed but not listed in the script
-            diff = list(installed_packages.difference(packages))
+            diff = self.get_differing_packages(config.packages.keys(), False)
         else:
             # Packages listed in the script but not installed
-            diff = list(packages.difference(installed_packages))
+            if args.categories != None:
+                categories = args.categories
+            diff = self.get_differing_packages(categories, True)
 
         diff.sort()
         print '\n'.join(diff)
@@ -366,6 +370,8 @@ def parse_arguments():
         '-i', '--inverse', action='store_true',
         help=('Lists the inverse, i.e. all packages specified in config.py '
               'but not currently installed'))
+    list_parser.add_argument('--categories', nargs='+',
+                             help='Categories to use (only works with -i argument)')
 
     config_parser = subparsers.add_parser(
         'config', help="Operations dealing with configuration files")
