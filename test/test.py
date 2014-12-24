@@ -9,24 +9,27 @@ import sys
 import unittest
 
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
-from packages import ConfigHandler, InstallHandler, ListHandler
+from archutil import ConfigHandler, InstallHandler, ListHandler
 DiffResult = ConfigHandler.DiffResult
 
 chroot_message = ('an ArchLinux chroot called "chroot" must be present in the '
                   'test directory. See `setup-chroot.sh` for more details.')
-chroot_dir = 'chroot/root'
+chroot_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          'chroot/root')
 
+print chroot_dir
 
 @unittest.skipIf(not os.path.isdir(chroot_dir), chroot_message)
 class TestInstallFunctions(unittest.TestCase):
     def setUp(self):
         assert os.path.isdir(chroot_dir)
         self.cwd = os.getcwd()
+        print self.cwd
         self.real_root = os.open('/', os.O_RDONLY)
         os.chroot(chroot_dir)
 
     def test_do_install(self):
-        install_handler = InstallHandler()
+        install_handler = InstallHandler('pacman')
         install_handler.update_repos()
 
         install_handler.do_install({'all': ['wget']}, ['all'], True)
@@ -47,11 +50,12 @@ class TestListFunctions(unittest.TestCase):
     def setUp(self):
         assert os.path.isdir(chroot_dir)
         self.cwd = os.getcwd()
+        print self.cwd
         self.real_root = os.open('/', os.O_RDONLY)
         os.chroot(chroot_dir)
 
     def test_list(self):
-        list_handler = ListHandler()
+        list_handler = ListHandler('pacman')
         package_list = list_handler.get_installed_packages(['base'])
         assert package_list == set(['flex', 'gcc', 'groff', 'make', 'patch',
                                 'automake', 'm4', 'fakeroot', 'bison', 'libtool',
@@ -65,9 +69,10 @@ class TestListFunctions(unittest.TestCase):
 
 
 class TestConfigFunctions(unittest.TestCase):
-    install_ref_dir = os.path.join(os.getcwd(), 'install_ref_dir')
-    update_ref_dir = os.path.join(os.getcwd(), 'update_ref_dir')
-    test_dir = os.path.join(os.getcwd(), 'test_dir')
+    cwd = os.path.dirname(os.path.abspath(__file__))
+    install_ref_dir = os.path.join(cwd, 'install_ref_dir')
+    update_ref_dir = os.path.join(cwd, 'update_ref_dir')
+    test_dir = os.path.join(cwd, 'test_dir')
     config_dir = os.path.join(test_dir, 'config_files')
     sys_matching_config = os.path.join(test_dir, 'matching')
     bak_matching_config = os.path.join(config_dir, 'matching')
