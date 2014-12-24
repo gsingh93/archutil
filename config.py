@@ -1,5 +1,8 @@
 # Non-standard repositories required to install packages
-required_repos = ['multilib']
+# required_repos = ['multilib']
+
+# Custom path to directory where configuration files are stored
+# configs_dir = '/path/to/config/files'
 
 # List the packages with their categories below
 packages = {

@@ -1,55 +1,37 @@
-Package and Config Backup Utility
-=================================
+`archutil`
+==========
 
-This utility allows you to create a list of explicitly installed packages which you can later use to install those same packages on any machine. This tool also allows you to keep config files in sync between your system and some backup files (a common requirement with version controlled dotfiles, like `.bashrc`). Currently, package listing and installation is only supported on Arch Linux. There are no plans to port this utility to other platforms, but this shouldn't be hard to do, and pull requests are welcome.
+`archutil` is an Arch Linux utility that makes it easy to replicate an Arch Linux setup on any other machine in terms of both packages and configuration files. The configuration management functions can actually be used on any Linux distro, but the package management functions can only be used on Arch Linux While there are no plans to port this utility to other platforms, this shouldn't be hard to do with the current design of the tools. You can contact me if you're interested in working on this and pull requests are welcome.
 
-Usage
------
+This tool is still in development and is bound to have bugs. Please report any bugs you find in the issues section. There are also many features that could be added to improve the tool that weren't absolutely necessary for the release. If there's a feature you would find useful, please create an issue for it.
 
-```
-$ ./packages.py -h
-usage: packages.py [-h] {install,list,config} ...
+Package Management
+------------------
+The first use for `archutil` is for maintaining a package list so you can keep different Arch installs in sync, quickly replicate an Arch install on another machine, or selectively install specific groups of packages on a machine (i.e. there's no point in installing graphical packages from your local machine to a server running Arch). To list all of the explicitly installed packages on your machine (note that this does not include dependencies), run `./archutil.py list`. On your first run, this should essentially match the output of `pacman -Qe` (minus the `base` group, but we'll get to that). Place that list of packages into `config.py` in the `packages` Python dictionary (i.e. replace `package1` and `package2` with the packages given to you by `archutil`). Now if you run `./archutil.py list` again, it'll only list the packages you've explicitly installed but haven't added to your list, so in this case you should see nothing. You can try installing a random package at this point and then running the command to see if it works. This helps you easily maintain the package list in `config.py`. Note that if you put a package group (like `gnome` or `base-devel`) in your package list, all of the packages in that group won't be displayed in the output of the `list` command. The `base` package group is implicitly placed in your list, as every Arch Linux system should have these packages installed, so you should never see these packages in the output.
 
-Package management utility
+This also helps you keep your system lean and minimal. After putting the initial package list in `config.py` and not running `archutil` for a while, you may end up with a bunch of new packages on your machine. You might have only been trying these packages out, or maybe you needed a package for something but no longer need it. If you run `./archutil.py list`, you can quickly find all the packages you've installed since last running `./archutil.py list`, and you can choose to remove those packages or add them to `config.py`. Thus, you have complete knowledge and control over the packages installed on your system.
 
-positional arguments:
-  {install,list,config}
-    install             Installs specified package groups
-    list                Lists installed packages not already specified in
-                        config.py
-    config              Operations dealing with configuration files
+You can also organize your packages into categories. One benefit of this is it helps you understand and maintain what packages you have installed. Another (and more important) benefit is that you can install specific categories of packages on certain systems. For example, you wouldn't want to install all the graphical packages from your personal laptop onto a server running Arch. To specify categories in `config.py`, simply use the category name as the key and a list of packages in that category as an example. You can then refer to these categories with the `--categories` flag, which we'll use in a bit.
 
-optional arguments:
-  -h, --help            show this help message and exit
-```
+We've talked about listing packages, but how do we actually install them? You can use `./archutil.py install` for that. This command first checks if all the packages about to be installed actually exist and tells you if there are any issues. It then installs them with the `--needed` flag, so only new packages will be installed. If you only want to install certain categories, you can run `./archutil.py install --categories graphical dev networking`, which would install all packages in the graphical, dev, and networking categories (note that these are user-defined categories that I made up for this example).
 
-### List Packages
+Configuration Management
+------------------------
 
-### Install Packages
+The second use for `archutil` is for maintaining your configuration files. I (like many of you) version control my dotfiles and other configuration files. A common issue I run into is forgetting to update my Git repo after making changes to certain files, or making changes on one machine, updating the repo, but pulling the repo on another machine a few days later and not remembering which configuration files to sync. `archutil` helps to manage both of these issues.
 
-```
-$ ./packages.py list -h
-usage: packages.py list [-h] [-i]
+The `config_files` dictionary in `config.py` contains a list of configuration files to manage. All configuration files should be stored in a directory called `config_files` in the same folder as `archutil.py` (more on customizing this path later). Then the keys of the `config_files` dictionary are the paths to files in the `config_files` folders (relative to the `config_files` folder). The value of each key is the location of the file on the system. The example `config.py` shows this for a `.bashrc` file.
 
-optional arguments:
-  -h, --help     show this help message and exit
-  -i, --inverse  Lists the inverse, i.e. all packages specified in config.py
-                 but not currently installed
-```
+To see which files on the system differ from the files in your dotfiles repo, run `./archutil.py config -d`. This will print the files that differ. If you also want to see the output of the `diff` command for each file, run `./archutil.py config -dd`.
 
-### Config
+To install all the configuration files in the system with the files in the repo, run `./archutil.py config -i` to install the files. If a file already exists at the path of the system file, a `.bak` extension will be added to the original file. To update files in the repo with files in the system, run `./archutil.py config -u`. This will show the diff for each configuration file and prompt you to update the file in the repo with the file in the system.
 
-```
-$ ./packages.py config -h
-usage: packages.py config [-h] [-c CONFIG_PATH] (-d | -dd | -i | -u)
+`archutil` will look in a directory named `config_files` in the same folder as the `archutil` script by default. If you would like to specify a different folder to search for the config files, you can use the `-cd` or `--configs-dir` flags, i.e. `./archutil.py config -cd /path/to/config/files -d`. Alternatively, you can define a variable named `configs_dir` in `config.py` that contains a path to the configuration file directory.
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -c CONFIG_PATH, --config-path CONFIG_PATH
-                        Absolute or relative directory path to where
-                        configuration files are stored
-  -d, --diff            Display filenames of differing files.
-  -dd, --diff-file      Display file differences.
-  -i, --install         Install config files on system
-  -u, --update          Update config files in backup folder
-```
+Misc features
+-------------
+
+- By default, `archutil` looks for `config.py` in the same directory as the script. If you would like to change this directory, use the `-c` flag, i.e. `./archutil.py -c /path/to/config.py`.
+- Note that any of the variables in `config.py` can be assigned as the output of some function. Thus, if you want to do something like customize the home directory in the paths in the `config_files` dictionary depending on the user running the script, you can write a Python function to do that
+- You can define a `required_repos` variable in `config.py` that contains a list of repos that should be enabled in `/etc/pacman.conf`. Doing this won't enable these repositories, but it will remind you to enable them when installing packages on a new system.
+- `archutil` supports installing packages from the AUR. Define a variable in `config.py` called `pacman` and set it to a package manager that can handle packages from the normal repositories and from the AUR, like `yaourt`. The binary specified in that variable will be used for all operations where `pacman` would normally have been used, so not all package managers will work.
