@@ -137,7 +137,8 @@ class ConfigHandler:
             if r.system_config_exists:
                 if r.result == self.DiffResult.MATCHES:
                     print_msg("%s and %s match, skipping install"
-                              % (r.backup_config_path, r.system_config_path))
+                              % (r.backup_config_path, r.system_config_path),
+                              colors.BLUE)
                     continue
 
                 assert r.result == self.DiffResult.DIFFERS
@@ -154,7 +155,7 @@ class ConfigHandler:
             if r.backup_config_exists:
                 if r.result == self.DiffResult.MATCHES:
                     print_msg("Files match, skipping update of "
-                              + r.backup_config_path)
+                              + r.backup_config_path, colors.BLUE)
                     continue
 
                 assert r.result == self.DiffResult.DIFFERS
