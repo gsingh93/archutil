@@ -286,12 +286,13 @@ class InstallHandler:
 
     def handle(self, args):
         # Make sure all required repos are available
-        repos = self.check_required_repos()
-        if len(repos) > 0:
-            print_msg('The following repos must be enabled before package '
-                      'installation can continue: ' + ', '.join(repos),
-                      colors.RED)
-            return
+        if does_var_exist('required_repos', list):
+            repos = self.check_required_repos()
+            if len(repos) > 0:
+                print_msg('The following repos must be enabled before package '
+                          'installation can continue: ' + ', '.join(repos),
+                          colors.RED)
+                return
 
         if not self.update_repos():
             print_msg('Failed to update package database', colors.RED)
@@ -362,10 +363,13 @@ def parse_arguments():
     return parser.parse_args()
 
 
+def does_var_exist(var_name, t):
+    return hasattr(config, var_name) and type(getattr(config, var_name)) == t
+
+
 def validate_config_file():
     def check_var_exists(var_name, t):
-        if not (hasattr(config, var_name)
-                and type(getattr(config, var_name)) == t):
+        if not does_var_exist(var_name, t):
             type_name = t.__name__
             msg = "config.py must contain a %s called `%s`"
             print_msg(msg % (type_name, var_name), colors.RED)
@@ -373,8 +377,7 @@ def validate_config_file():
         return True
 
     return (check_var_exists('packages', dict)
-            and check_var_exists('config_files', dict)
-            and check_var_exists('required_repos', list))
+            and check_var_exists('config_files', dict))
 
 
 def get_config_file_path(args):
