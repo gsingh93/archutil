@@ -254,12 +254,24 @@ class InstallHandler:
     def check_packages_exist(self, packages, categories):
         bad_packages = []
         dev_null = open(os.devnull, 'w')
-        for l in [packages[c] for c in categories]:
-            for p in l:
-                retcode = subprocess.call([self.pacman, '-Ss', p],
-                                          stdout=dev_null)
+        package_list = [p for c in categories for p in packages[c]]
+
+        all_packages = subprocess.check_output([self.pacman, '-Ssq']).split('\n')
+        missing_packages = set(package_list) - set(all_packages)
+
+        # Fallback to checking individual bad packages if pacman is not used.
+        # This is required in case packages are actually in the AUR
+        # TODO: Use this https://wiki.archlinux.org/index.php/AurJson
+        bad_packages = []
+        if self.pacman != 'pacman':
+            for p in missing_packages:
+                retcode = subprocess.call(self.pacman + ' -Ssq %s | grep "^%s$"'
+                                          % (p, p), shell=True, stdout=dev_null)
+
                 if retcode != 0:
                     bad_packages.append(p)
+        else:
+            bad_packages = missing_packages
 
         return bad_packages
 
