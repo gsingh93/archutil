@@ -78,7 +78,10 @@ class ListHandler:
             diff = self.get_differing_packages(categories, True)
 
         diff.sort()
-        print '\n'.join(diff)
+        if args.list:
+            print "['" + "',\n'".join(diff) + "']"
+        else:
+            print '\n'.join(diff)
 
 
 class ConfigHandler:
@@ -370,8 +373,12 @@ def parse_arguments():
         '-i', '--inverse', action='store_true',
         help=('Lists the inverse, i.e. all packages specified in config.py '
               'but not currently installed'))
-    list_parser.add_argument('--categories', nargs='+',
-                             help='Categories to use (only works with -i argument)')
+    list_parser.add_argument(
+        '--categories', nargs='+',
+        help='Categories to use (only works with -i argument)')
+    list_parser.add_argument(
+        '-l', '--list', action='store_true',
+        help='Display output as a Python list')
 
     config_parser = subparsers.add_parser(
         'config', help="Operations dealing with configuration files")
