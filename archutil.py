@@ -198,7 +198,7 @@ class ConfigHandler:
                 return
             self.safe_copy(path2, os.path.normpath(path2) + ".bak")
 
-        print_msg("Copying %s to %s" % (path1, path2), colors.BLUE)
+        print_msg("Copying %s to %s" % (path1, path2), colors.GREEN)
         if os.path.isdir(path1):
             shutil.copytree(path1, path2)
         else:
