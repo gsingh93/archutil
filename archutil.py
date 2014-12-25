@@ -36,6 +36,7 @@ class ListHandler:
     def get_listed_groups(self, packages):
         """Returns a list of packages in `config.packages` that are actually
         groups"""
+        # TODO: Clean this up by just using pacman -Sg
         command = "pacman -Sg %s | awk '{print $1}' | sort -u" \
                   % " ".join(packages)
         return subprocess.check_output(command, shell=True).rstrip().split('\n')
@@ -267,6 +268,11 @@ class InstallHandler:
         all_packages = subprocess.check_output([self.pacman, '-Ssq']).split('\n')
         missing_packages = set(package_list) - set(all_packages)
 
+        # Remove groups from missing_packages
+        all_groups = set(subprocess.check_output(['pacman', '-Sg']).split('\n'))
+
+        missing_packages -= all_groups
+
         # Fallback to checking individual bad packages if pacman is not used.
         # This is required in case packages are actually in the AUR
         # TODO: Use this https://wiki.archlinux.org/index.php/AurJson
@@ -343,14 +349,17 @@ class InstallHandler:
         else:
             categories = config.packages.keys()
 
-        # Make sure all packages to be installed exist
-        printc("Checking that all packages exist...", colors.YELLOW)
-        bad_packages = self.check_packages_exist(config.packages, categories)
-        if len(bad_packages) > 0:
-            print_msg('The following packages could not be found in the repos '
-                      'and must be removed before installation can continue: '
-                      + ', '.join(bad_packages), colors.RED)
-            return
+        if not args.skip_verification:
+            # Make sure all packages to be installed exist
+            printc('Checking that all packages exist... (this may take a while '
+                   'the pacman variable in config.py is set to anything other '
+                   'than pacman)', colors.YELLOW)
+            bad_packages = self.check_packages_exist(config.packages, categories)
+            if len(bad_packages) > 0:
+                print_msg('The following packages could not be found in the repos '
+                          'and must be removed before installation can continue: '
+                          + ', '.join(bad_packages), colors.RED)
+                return
 
         print_msg('Installing packages', colors.BLUE)
         self.do_install(config.packages, categories)
@@ -364,6 +373,10 @@ def parse_arguments():
 
     install_parser = subparsers.add_parser(
         'install', help=('Installs specified package groups'))
+    install_parser.add_argument('-s', '--skip-verification', action='store_true',
+                                help=("Don't check if all packages you're about "
+                                "to install actually exist before attempting to "
+                                "install"))
     install_parser.add_argument('--categories', nargs='+',
                                 help='Package categories to install')
 
