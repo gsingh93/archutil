@@ -155,6 +155,10 @@ class ConfigHandler:
                 assert r.result == self.DiffResult.DIFFERS
                 self.safe_copy(r.backup_config_path, r.system_config_path)
             else:
+                dirname = os.path.dirname(r.system_config_path)
+                if not os.path.isdir(dirname):
+                    print_msg('Creating directory ' + dirname, colors.YELLOW)
+                    os.makedirs(dirname)
                 self.safe_copy(r.backup_config_path, r.system_config_path)
 
     def update_config_files(self, results):
