@@ -55,7 +55,7 @@ class TestListFunctions(unittest.TestCase):
         os.chroot(chroot_dir)
 
     def test_list(self):
-        list_handler = ListHandler('pacman')
+        list_handler = ListHandler()
         package_list = list_handler.get_installed_packages(['base'])
         assert package_list == set(['flex', 'gcc', 'groff', 'make', 'patch',
                                 'automake', 'm4', 'fakeroot', 'bison', 'libtool',

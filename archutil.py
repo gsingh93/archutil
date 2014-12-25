@@ -29,9 +29,6 @@ def print_msg(m, color=colors.DEFAULT):
 
 
 class ListHandler:
-    def __init__(self, pacman):
-        self.pacman = pacman
-
     def get_listed_packages(self, packages, categories):
         """Returns a set of packages listed in `config.packages`"""
         return set([p for c in categories for p in packages[c]])
@@ -39,13 +36,13 @@ class ListHandler:
     def get_listed_groups(self, packages):
         """Returns a list of packages in `config.packages` that are actually
         groups"""
-        command = self.pacman + " -Sg %s | awk '{print $1}' | sort -u" \
+        command = "pacman -Sg %s | awk '{print $1}' | sort -u" \
                   % " ".join(packages)
         return subprocess.check_output(command, shell=True).rstrip().split('\n')
 
     def get_installed_packages(self, groups):
         """Returns a set of installed packages"""
-        command = (self.pacman + " -Qe | awk '{print $1}'"
+        command = ("pacman -Qe | awk '{print $1}'"
                    "| grep -Fxv -f <(pacman -Qg %s"
                    "| awk '{print $2}')") % " ".join(groups)
         packages = subprocess.check_output(
@@ -477,7 +474,7 @@ def main():
     if args.subcommand == 'install':
         handler = InstallHandler(pacman)
     elif args.subcommand == 'list':
-        handler = ListHandler(pacman)
+        handler = ListHandler()
     elif args.subcommand == 'config':
         configs_dir = get_configs_dir_path(args, config_file_path)
         handler = ConfigHandler(configs_dir)
