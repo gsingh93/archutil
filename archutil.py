@@ -64,15 +64,18 @@ class ListHandler:
             return list(packages.difference(installed_packages))
 
     def handle(self, args):
-        categories = config.packages.keys()
         diff = None
+
+        if args.categories != None:
+            categories = args.categories
+        else:
+            categories = config.packages.keys()
+
         if not args.inverse:
             # Print all packages that are installed but not listed in the script
-            diff = self.get_differing_packages(config.packages.keys(), False)
+            diff = self.get_differing_packages(categories, False)
         else:
             # Packages listed in the script but not installed
-            if args.categories != None:
-                categories = args.categories
             diff = self.get_differing_packages(categories, True)
 
         diff.sort()
