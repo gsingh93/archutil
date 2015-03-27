@@ -435,7 +435,10 @@ def validate_config_file():
 
 
 def get_config_file_path(args):
+    # First check if config file is in local directory, then check in ~/.config
     config_file_path = os.path.join(os.getcwd(), 'config.py')
+    if not os.path.isfile(config_file_path):
+        config_file_path = os.path.expanduser('~/.config/archutil/config.py')
     if args.config_path != None:
         if os.path.isabs(args.config_path):
             config_file_path = args.config_path
