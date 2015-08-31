@@ -175,6 +175,10 @@ class ConfigHandler:
                     continue
 
                 assert r.result == self.DiffResult.DIFFERS
+                print_msg((r.system_config_path +
+                           ' differs from ' + r.backup_config_path),
+                          colors.YELLOW)
+                print r.diff_output
 
                 prompt = ('Update config file with system config '
                           'file (< is config file, > is system '
